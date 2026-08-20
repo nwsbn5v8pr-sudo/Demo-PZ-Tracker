@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>🛍️ PZ Tracker</title>
+<!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  :root {
+    --bg-primary: #f2f2f7;
+    --bg-card: #ffffff;
+    --text-primary: #1c1c1e;
+    --text-secondary: #8e8e93;
+    --accent: #007aff;
+    --border: #e5e5ea;
+    --border-strong: #d1d1d6;
+    --success: #34c759;
+    --success-bg: rgba(52, 199, 89, 0.12);
+    --gold: #ffd60a;
+    --sticky-bg: #ffffff;
+    --section-header-bg: #e5e5ea;
+    --tab-bg: #e3e3e8;
+    --tab-active-bg: #ffffff;
+    --podium-gold: linear-gradient(135deg, #ffe066, #f59e0b);
+    --podium-silver: linear-gradient(135deg, #e2e8f0, #94a3b8);
+    --podium-bronze: linear-gradient(135deg, #fed7aa, #ea580c);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #000000;
+      --bg-card: #1c1c1e;
+      --text-primary: #f2f2f7;
+      --text-secondary: #8e8e93;
+      --accent: #0a84ff;
+      --border: #2c2c2e;
+      --border-strong: #3a3a3c;
+      --sticky-bg: #1c1c1e;
+      --success-bg: rgba(52, 199, 89, 0.2);
+      --section-header-bg: #2c2c2e;
+      --tab-bg: #2c2c2e;
+      --tab-active-bg: #3a3a3c;
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Segoe UI", Roboto, sans-serif;
+  }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: calc(12px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    min-height: 100vh;
+  }
+
+  /* Top Action Bar */
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .app-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .sync-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    min-height: 38px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: var(--accent);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    touch-action: manipulation;
+    transition: all 0.15s ease;
+  }
+  button:active {
+    opacity: 0.8;
+  }
+  button.secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+  }
+  button.danger {
+    background: rgba(255, 69, 58, 0.12);
+    color: #ff453a;
+    border: 1px solid rgba(255, 69, 58, 0.25);
+  }
+  button.undo-btn {
+    background: rgba(255, 149, 0, 0.15);
+    color: #ff9500;
+    border: 1px solid rgba(255, 149, 0, 0.35);
+  }
+  button.undo-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Segmented Navigation Tabs */
+  .timeframe-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px 8px;
+    margin-bottom: 14px;
+  }
+  .segmented-control {
+    display: inline-flex;
+    background: var(--tab-bg);
+    padding: 3px;
+    border-radius: 10px;
+    gap: 3px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .tab-btn {
+    min-height: 32px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .tab-btn.active {
+    background: var(--tab-active-bg);
+    color: var(--text-primary);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  .timeframe-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .period-selector {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* Top Performers Podium Section */
+  .top-performers-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .top-performers-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .top-performers-title {
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .top-performers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .performer-badge-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .rank-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 800;
+    color: #1c1c1e;
+    flex-shrink: 0;
+  }
+  .rank-1 { background: var(--podium-gold); }
+  .rank-2 { background: var(--podium-silver); }
+  .rank-3 { background: var(--podium-bronze); }
+  .rank-star { background: var(--bg-card); border: 1px solid var(--border); }
+  
+  .performer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+  .performer-name {
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .performer-stats {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  /* KPI Grid */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .kpi-card.checkin {
+    border-color: rgba(52, 199, 89, 0.5);
+    background: linear-gradient(145deg, var(--bg-card), var(--success-bg));
+  }
+  .kpi-card.gold {
+    border-color: rgba(255, 214, 10, 0.6);
+    background: linear-gradient(145deg, var(--bg-card), rgba(255, 214, 10, 0.12));
+  }
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+  .kpi-num {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  /* Filters */
+  .filter-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .filter-inputs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+  input[type="search"], select {
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+  }
+  .team-count-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  /* Table Card */
+  .table-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .table-wrapper {
+    max-height: 60vh;
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+  }
+
+  /* Sortable Headers */
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    padding: 10px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-strong);
+    z-index: 20;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  thead th:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+  }
+  .sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 10px;
+    opacity: 0.6;
+  }
+  thead th.active-sort {
+    color: var(--accent);
+  }
+  thead th.active-sort .sort-icon {
+    opacity: 1;
+  }
+
+  .section-divider-row td {
+    background: var(--section-header-bg) !important;
+    padding: 8px 14px !important;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-strong);
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .section-divider-row td.col-sticky {
+    background: var(--section-header-bg) !important;
+  }
+
+  .col-sticky {
+    position: sticky;
+    left: 0;
+    background: var(--sticky-bg);
+    z-index: 10;
+    border-right: 1px solid var(--border);
+    min-width: 210px;
+  }
+  thead th.col-sticky {
+    z-index: 30;
+    background: var(--bg-card);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr.checked-in-row {
+    background: rgba(52, 199, 89, 0.08);
+  }
+  tbody tr.checked-in-row .col-sticky {
+    background: rgba(52, 199, 89, 0.12);
+  }
+  tbody tr.grand-slam-row {
+    background: rgba(255, 214, 10, 0.1) !important;
+  }
+  tbody tr.grand-slam-row .col-sticky {
+    background: rgba(255, 214, 10, 0.15) !important;
+  }
+
+  tbody td {
+    padding: 8px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .name-cell-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 0;
+  }
+  .chk-badge {
+    font-size: 20px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-strong);
+    flex-shrink: 0;
+  }
+  .checked-in-row .chk-badge {
+    background: #34c759;
+    border-color: #34c759;
+  }
+
+  .name-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .member-name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .role-tag {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .counter-box {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-primary);
+    border-radius: 8px;
+    padding: 2px;
+    border: 1px solid var(--border);
+  }
+  .cnt-btn {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    font-size: 17px;
+    font-weight: 700;
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .cnt-btn.plus {
+    color: var(--accent);
+  }
+  .cnt-val {
+    width: 28px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .aggregate-val {
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .badge-grand-slam {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ffd60a, #ff9f0a);
+    color: #000000;
+    white-space: nowrap;
+  }
+
+  .badge-progress {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .badge-progress.almost {
+    border-color: #ff9500;
+    color: #ff9500;
+    background: rgba(255, 149, 0, 0.1);
+  }
+
+  .step-select {
+    height: 32px;
+    padding: 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .step-select:focus {
+    border-color: var(--accent);
+  }
+
+  .notes-input {
+    width: 100%;
+    min-width: 130px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+  }
+  .notes-input:focus {
+    border-color: var(--border-strong);
+    background: var(--bg-primary);
+    border-radius: 6px;
+  }
+
+  tfoot td {
+    background: var(--bg-primary);
+    font-weight: 700;
+    padding: 12px;
+    border-top: 2px solid var(--border-strong);
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+  }
+  tfoot td.col-sticky {
+    background: var(--bg-primary);
+    z-index: 30;
+  }
+
+  /* History Logs Card */
+  .history-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    display: none;
+  }
+  .history-item {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .history-date {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .history-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+  }
+  .history-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* 🔒 Passcode Gate Overlay */
+  #passcodeOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(242, 242, 247, 0.98);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  @media (prefers-color-scheme: dark) {
+    #passcodeOverlay {
+      background: rgba(0, 0, 0, 0.98);
+    }
+  }
+  #passcodeOverlay.unlocked {
+    display: none !important;
+  }
+  .passcode-modal {
+    max-width: 320px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .passcode-icon {
+    font-size: 38px;
+    margin-bottom: 8px;
+  }
+  .passcode-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    margin-bottom: 4px;
+  }
+  .passcode-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+  
+  /* Visible / Dual-mode Input Box */
+  .passcode-input-box {
+    width: 180px;
+    height: 46px;
+    font-size: 24px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 10px;
+    border-radius: 12px;
+    border: 2px solid var(--border-strong);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .passcode-input-box:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+  }
+
+  .passcode-error-msg {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ff453a;
+    min-height: 20px;
+    margin-bottom: 14px;
+  }
+  .passcode-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 260px;
+    margin-bottom: 16px;
+  }
+  .passcode-key {
+    height: 60px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 22px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: all 0.1s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .passcode-key:hover {
+    background: var(--border);
+  }
+  .passcode-key:active {
+    background: var(--accent);
+    color: #ffffff;
+    transform: scale(0.94);
+  }
+  .passcode-key.action-key {
+    font-size: 13px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--text-secondary);
+  }
+  .passcode-key.action-key:hover {
+    color: var(--text-primary);
+    background: transparent;
+  }
+  .passcode-submit-btn {
+    width: 100%;
+    max-width: 260px;
+    height: 42px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 10px;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-10px); }
+    40%, 80% { transform: translateX(10px); }
+  }
+  .shake-anim {
+    animation: shake 0.4s ease;
+  }
+</style>
+</head>
+<body>
+
+  <!-- 🔒 Passcode Gate Overlay -->
+  <div id="passcodeOverlay">
+    <div class="passcode-modal" id="passcodeModal">
+      <div class="passcode-icon">🔒</div>
+      <h1 class="passcode-title">Enter Passcode</h1>
+      <p class="passcode-subtitle">Access PZ Tracker</p>
+      
+      <!-- Passcode Input Box -->
+      <input type="password" id="passcodeInput" class="passcode-input-box" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" autocomplete="off" autofocus oninput="onPasscodeInputChange(this.value)" onkeydown="if(event.key==='Enter') submitPasscode()">
+
+      <div class="passcode-error-msg" id="passcodeError"></div>
+
+      <!-- Touch / Click Keypad -->
+      <div class="passcode-keypad">
+        <button type="button" class="passcode-key" onclick="pressKeypad('1')">1</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('2')">2</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('3')">3</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('4')">4</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('5')">5</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('6')">6</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('7')">7</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('8')">8</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('9')">9</button>
+        <button type="button" class="passcode-key action-key" onclick="clearPasscodeBox()">Clear</button>
+        <button type="button" class="passcode-key" onclick="pressKeypad('0')">0</button>
+        <button type="button" class="passcode-key action-key" onclick="backspacePasscodeBox()">⌫</button>
+      </div>
+
+      <button type="button" class="passcode-submit-btn" onclick="submitPasscode()">Unlock App</button>
+    </div>
+  </div>
+
+  <script>
+    /* Immediate Self-Contained Passcode Engine */
+    const APP_PASSCODE = "7040";
+
+    function unlockAppScreen() {
+      try {
+        sessionStorage.setItem('pz_tracker_auth_token_v3', 'unlocked');
+      } catch(e) {}
+      const ov = document.getElementById('passcodeOverlay');
+      if (ov) {
+        ov.classList.add('unlocked');
+        ov.style.setProperty('display', 'none', 'important');
+      }
+      // Ensure table and UI render immediately when unlocked
+      if (typeof renderTableStructure === 'function') {
+        renderTableStructure();
+        updateTotals();
+        reorderRows();
+      }
+    }
+
+    function checkAuthOnStart() {
+      try {
+        if (sessionStorage.getItem('pz_tracker_auth_token_v3') === 'unlocked') {
+          unlockAppScreen();
+        }
+      } catch(e) {}
+    }
+
+    function submitPasscode() {
+      const inp = document.getElementById('passcodeInput');
+      const err = document.getElementById('passcodeError');
+      const modal = document.getElementById('passcodeModal');
+      const val = (inp ? inp.value : '').trim();
+
+      if (val === APP_PASSCODE) {
+        if (err) err.textContent = "";
+        unlockAppScreen();
+      } else {
+        if (err) err.textContent = "Incorrect passcode. Try again.";
+        if (modal) {
+          modal.classList.remove('shake-anim');
+          void modal.offsetWidth;
+          modal.classList.add('shake-anim');
+        }
+        if (inp) {
+          inp.value = "";
+          inp.focus();
+        }
+      }
+    }
+
+    function onPasscodeInputChange(val) {
+      const err = document.getElementById('passcodeError');
+      if (err) err.textContent = "";
+      if (val && val.length === 4) {
+        if (val === APP_PASSCODE) {
+          unlockAppScreen();
+        } else {
+          submitPasscode();
+        }
+      }
+    }
+
+    function pressKeypad(digit) {
+      const inp = document.getElementById('passcodeInput');
+      if (inp && inp.value.length < 4) {
+        inp.value += digit;
+        onPasscodeInputChange(inp.value);
+      }
+    }
+
+    function backspacePasscodeBox() {
+      const inp = document.getElementById('passcodeInput');
+      if (inp && inp.value.length > 0) {
+        inp.value = inp.value.slice(0, -1);
+        const err = document.getElementById('passcodeError');
+        if (err) err.textContent = "";
+      }
+    }
+
+    function clearPasscodeBox() {
+      const inp = document.getElementById('passcodeInput');
+      if (inp) inp.value = "";
+      const err = document.getElementById('passcodeError');
+      if (err) err.textContent = "";
+    }
+
+    window.lockTracker = function() {
+      try {
+        sessionStorage.removeItem('pz_tracker_auth_token_v3');
+      } catch(e) {}
+      const ov = document.getElementById('passcodeOverlay');
+      if (ov) {
+        ov.classList.remove('unlocked');
+        ov.style.removeProperty('display');
+      }
+      clearPasscodeBox();
+      const inp = document.getElementById('passcodeInput');
+      if (inp) inp.focus();
+    };
+
+    // Run immediately
+    checkAuthOnStart();
+  </script>
+
+  <!-- Top Action Bar -->
+  <div class="top-bar">
+    <div class="app-title">
+      🛍️ PZ Tracker
+      <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
+      <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Archive: 8:59 PM • Auto-Reset: 11:59 PM</span>
+    </div>
+    <div class="btn-group">
+      <button class="undo-btn" id="btnUndo" onclick="undoLastAction()" title="Undo last change">↩️ Undo</button>
+      <button class="secondary" id="btnClearCheckins" onclick="checkAll(false)">◻️ Clear Check-Ins</button>
+      <button class="secondary" onclick="exportCSV()">📥 Export CSV</button>
+      <button class="secondary" onclick="promptAddTeamMember()">➕ Add Member</button>
+      <button class="secondary" onclick="lockTracker()" title="Lock App">🔒 Lock</button>
+      <button class="danger" id="btnReset" onclick="resetCounts()">🔄 Reset Day</button>
+    </div>
+  </div>
+
+  <!-- Timeframe Navigation Tabs -->
+  <div class="timeframe-nav">
+    <div class="segmented-control">
+      <button class="tab-btn active" id="tab-daily" onclick="switchTab('daily')">📅 Daily (Live)</button>
+      <button class="tab-btn" id="tab-priorday" onclick="switchTab('priorday')">⏮️ Prior Day</button>
+      <button class="tab-btn" id="tab-weekly" onclick="switchTab('weekly')">📊 Weekly</button>
+      <button class="tab-btn" id="tab-monthly" onclick="switchTab('monthly')">🗓️ Monthly</button>
+      <button class="tab-btn" id="tab-quarterly" onclick="switchTab('quarterly')">📈 Quarterly</button>
+      <button class="tab-btn" id="tab-history" onclick="switchTab('history')">📜 History Logs</button>
+    </div>
+    <div class="timeframe-controls">
+      <select id="periodSelector" class="period-selector" style="display: none;" onchange="onPeriodChange()">
+        <!-- Populated dynamically based on selected tab -->
+      </select>
+    </div>
+  </div>
+
+  <!-- Top Performers Podium Section -->
+  <div class="top-performers-card" id="topPerformersSection">
+    <div class="top-performers-header">
+      <div class="top-performers-title">
+        <span>🌟 Top Performers</span>
+        <span style="font-size: 11px; font-weight: 500; color: var(--text-secondary);" id="topPerformersSubtitle">(Live Leaderboard)</span>
+      </div>
+      <span style="font-size: 11px; color: var(--text-secondary);">Highest Multi-Category Impact</span>
+    </div>
+    <div class="top-performers-grid" id="topPerformersGrid"></div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card checkin">
+      <span class="kpi-label" id="lbl-kpi-checkin">👥 Checked In</span>
+      <span class="kpi-num" id="kpi-checkin" style="color: #34c759;">0 / 1</span>
+    </div>
+    <div class="kpi-card gold">
+      <span class="kpi-label" id="lbl-kpi-grandslam">🏆 Grand Slam</span>
+      <span class="kpi-num" id="kpi-grandslam" style="color: #ff9500;">0</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">🍎 AppleCare+</span>
+      <span class="kpi-num" id="kpi-ac">0</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">🆙 Upgrades</span>
+      <span class="kpi-num" id="kpi-upgrade">0</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">🛍️ Services</span>
+      <span class="kpi-num" id="kpi-services">0</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">💼 Business</span>
+      <span class="kpi-num" id="kpi-biz">0</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">🎧 Accessories</span>
+      <span class="kpi-num" id="kpi-acc">0</span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-panel" id="filterPanel">
+    <div class="filter-inputs">
+      <input type="search" id="searchInput" placeholder="🔍 Search name..." oninput="filterTable()">
+      <select id="roleFilter" onchange="filterTable()">
+        <option value="ALL">All Roles (1)</option>
+        <option value="Specialist">Specialist</option>
+        <option value="Expert">Expert</option>
+        <option value="Creative">Creative</option>
+        <option value="Creative Pro">Creative Pro</option>
+        <option value="Business Pro">Business Pro</option>
+        <option value="Business Expert">Business Expert</option>
+        <option value="Pro">Pro</option>
+        <option value="Tech and Merch Pro">Tech & Merch Pro</option>
+        <option value="POP">POP</option>
+      </select>
+      <select id="checkinFilter" onchange="filterTable()">
+        <option value="ALL">All Attendance</option>
+        <option value="IN">✅ Checked In Only</option>
+        <option value="OUT">◻️ Not Checked In</option>
+      </select>
+      <select id="stepFilter" onchange="filterTable()">
+        <option value="ALL">All Steps of Services</option>
+        <option value="Approach">Approach</option>
+        <option value="Probe">Probe</option>
+        <option value="Present">Present</option>
+        <option value="Listen">Listen</option>
+        <option value="Extend">Extend</option>
+      </select>
+      <select id="slamFilter" onchange="filterTable()">
+        <option value="ALL">All Performers</option>
+        <option value="SLAM">🏆 5/5 Grand Slam</option>
+        <option value="NEAR">🎯 4/5 (1 Away)</option>
+      </select>
+    </div>
+    <div class="team-count-badge" id="teamCount">1 Team Member</div>
+  </div>
+
+  <!-- Table Card -->
+  <div class="table-card" id="mainTableCard">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr id="tableHeaderRow">
+            <th class="col-sticky" id="th-name" onclick="setColumnSort('name')">
+              Check-in & Team Member <span class="sort-icon" id="sort-icon-name">↕️</span>
+            </th>
+            <th style="text-align:center;" id="th-slam" onclick="setColumnSort('slam')">
+              🏆 Status <span class="sort-icon" id="sort-icon-slam">↕️</span>
+            </th>
+            <th style="text-align:center;" id="th-ac" onclick="setColumnSort('ac')">
+              🍎 AppleCare+ <span class="sort-icon" id="sort-icon-ac">↕️</span>
+            </th>
+            <th style="text-align:center;" id="th-upgrade" onclick="setColumnSort('upgrade')">
+              🆙 Upgrades <span class="sort-icon" id="sort-icon-upgrade">↕️</span>
+            </th>
+            <th style="text-align:center;" id="th-services" onclick="setColumnSort('services')">
+              🛍️ Services <span class="sort-icon" id="sort-icon-services">↕️</span>
+            </th>
+            <th style="text-align:center;" id="th-biz" onclick="setColumnSort('biz')">
+              💼 Business <span class="sort-icon" id="sort-icon-biz">↕️</span>
+            </th>
+            <th style="text-align:center;" id="th-acc" onclick="setColumnSort('acc')">
+              🎧 Accessories <span class="sort-icon" id="sort-icon-acc">↕️</span>
+            </th>
+            <th style="text-align:center;" id="th-step" onclick="setColumnSort('step')">
+              Apple Steps of Services <span class="sort-icon" id="sort-icon-step">↕️</span>
+            </th>
+            <th id="th-notes">Notes / Focus</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+        <tfoot>
+          <tr>
+            <td class="col-sticky" id="tot-name">TOTAL STORE SCORE</td>
+            <td style="text-align:center;" id="tot-slam">0 / 1</td>
+            <td style="text-align:center;" id="tot-ac">0</td>
+            <td style="text-align:center;" id="tot-up">0</td>
+            <td style="text-align:center;" id="tot-srv">0</td>
+            <td style="text-align:center;" id="tot-biz">0</td>
+            <td style="text-align:center;" id="tot-acc">0</td>
+            <td style="text-align:center;" id="tot-step">-</td>
+            <td id="tot-notes">-</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- History Logs View Card -->
+  <div class="history-card" id="historyCard">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="font-size: 18px; font-weight: 700;">📜 Daily Shift Archive Logs</h2>
+      <span style="font-size: 12px; color: var(--text-secondary);">Auto-Archived Daily at 8:59 PM</span>
+    </div>
+    <div id="historyListContainer"></div>
+  </div>
+
+<script>
+  const STORAGE_KEY_LIVE = "pz_tracker_v1_live";
+  const STORAGE_KEY_HISTORY = "pz_tracker_v1_hist";
+  const STORAGE_KEY_ROOM = "pz_tracker_v1_room";
+  // Stable room key: shared by every device that loads this page (was randomized per-load,
+  // which meant no two devices ever landed in the same sync topic).
+  const SYNC_TOPIC = "pz_tracker_v1_room_fashionvalley_pz";
+  const CLIENT_ID = "client_v1_" + Math.random().toString(36).substring(2, 10);
+
+  const INITIAL_ROSTER = [
+    {"name": "Ava Sharma", "role": "Pro"},
+    {"name": "Noah Lindqvist", "role": "Specialist"},
+    {"name": "Mia Nguyen", "role": "Pro"},
+    {"name": "Liam Boone", "role": "Expert"},
+    {"name": "Zoe Barrera", "role": "Pro"},
+    {"name": "Ethan Vargas", "role": "Specialist"},
+    {"name": "Luna Bergstrom", "role": "Specialist"},
+    {"name": "Mateo Marchetti", "role": "Specialist"},
+    {"name": "Nora Prescott", "role": "Expert"},
+    {"name": "Kai Delgado", "role": "Pro"},
+    {"name": "Isla Farouk", "role": "Pro"},
+    {"name": "Diego Raman", "role": "Specialist"},
+    {"name": "Ruby Castellanos", "role": "Specialist"},
+    {"name": "Omar Kirby", "role": "Expert"},
+    {"name": "Elena Haddad", "role": "Expert"},
+    {"name": "Jonah Rojas", "role": "Specialist"},
+    {"name": "Priya Hollis", "role": "Specialist"},
+    {"name": "Marcus Tanaka", "role": "Expert"},
+    {"name": "Leila Calloway", "role": "Specialist"},
+    {"name": "Theo Draper", "role": "Expert"},
+    {"name": "Camila Adeyemi", "role": "Expert"},
+    {"name": "Andre Ashford", "role": "Pro"},
+    {"name": "Sofia Duarte", "role": "Expert"},
+    {"name": "Devin Salazar", "role": "Specialist"},
+    {"name": "Harper Fontaine", "role": "Specialist"},
+    {"name": "Rafael Whitfield", "role": "Specialist"},
+    {"name": "Nina Petrova", "role": "Expert"},
+    {"name": "Caleb Mendez", "role": "Specialist"},
+    {"name": "Amara Ellison", "role": "Specialist"},
+    {"name": "Julian Nasser", "role": "Specialist"},
+    {"name": "Freya Quinn", "role": "Specialist"},
+    {"name": "Hassan Solano", "role": "Expert"},
+    {"name": "Talia Brennan", "role": "Specialist"},
+    {"name": "Bryce Kowalski", "role": "Specialist"},
+    {"name": "Imani Beaumont", "role": "Specialist"},
+    {"name": "Victor Moreau", "role": "Pro"},
+    {"name": "Selena Okafor", "role": "Specialist"},
+    {"name": "Nolan Haile", "role": "Specialist"},
+    {"name": "Yara Osei", "role": "Expert"},
+    {"name": "Emilio Reyes", "role": "Specialist"}
+  ];
+
+  let currentTab = 'daily'; // 'daily' | 'priorday' | 'weekly' | 'monthly' | 'quarterly' | 'history'
+  let selectedPeriodKey = 'current';
+
+  // Live active shift data
+  let data = INITIAL_ROSTER.map((item, idx) => ({
+    id: idx,
+    name: item.name,
+    role: item.role,
+    checkedIn: false,
+    ac: 0,
+    upgrade: 0,
+    services: 0,
+    biz: 0,
+    acc: 0,
+    step: "",
+    notes: ""
+  }));
+
+  // Historical archived daily shifts
+  let historyRecords = [];
+  let lastVersion = 0;
+  let mqttClient = null;
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function getTodayString() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function parseDateSafe(dateStr) {
+    if (!dateStr) return new Date();
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+    return new Date(dateStr);
+  }
+
+  function getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  }
+
+  function getQuarterString(date) {
+    const q = Math.floor(date.getMonth() / 3) + 1;
+    return `Q${q} ${date.getFullYear()}`;
+  }
+
+  function getMonthString(date) {
+    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+  }
+
+  // 1. Restore local cache immediately
+  try {
+    const savedHist = localStorage.getItem(STORAGE_KEY_HISTORY);
+    if (savedHist) {
+      const parsed = JSON.parse(savedHist);
+      if (Array.isArray(parsed)) {
+        historyRecords = parsed;
+      }
+    }
+  } catch(e) {}
+
+  try {
+    const savedLive = localStorage.getItem(STORAGE_KEY_LIVE);
+    if (savedLive) {
+      const parsed = JSON.parse(savedLive);
+      const todayStr = getTodayString();
+      // If cached data is from a prior day (e.g., iPad was closed overnight)
+      if (parsed.date && parsed.date !== todayStr) {
+        if (Array.isArray(parsed.data)) {
+          const hasPastData = parsed.data.some(d => d.checkedIn || (d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
+          if (hasPastData && !historyRecords.some(r => r.date === parsed.date)) {
+            historyRecords.unshift({
+              date: parsed.date,
+              timestamp: parsed.timestamp || Date.now(),
+              data: parsed.data
+            });
+            localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyRecords));
+          }
+        }
+        // Start fresh for the new day
+        lastVersion = Date.now();
+      } else if (Array.isArray(parsed.data) && parsed.data.length > 0) {
+        lastVersion = parsed.version || 0;
+        // Restore the FULL saved roster (previously only names already present in
+        // INITIAL_ROSTER survived, so any manually added member disappeared on reload).
+        data = parsed.data.map((savedItem, idx) => ({
+          id: typeof savedItem.id === 'number' ? savedItem.id : idx,
+          name: savedItem.name,
+          role: savedItem.role || "Specialist",
+          checkedIn: !!savedItem.checkedIn,
+          ac: savedItem.ac || 0,
+          upgrade: savedItem.upgrade || 0,
+          services: savedItem.services || 0,
+          biz: savedItem.biz || 0,
+          acc: savedItem.acc || 0,
+          step: savedItem.step || "",
+          notes: savedItem.notes || ""
+        }));
+        // Re-add any seeded roster names that aren't in the saved snapshot.
+        INITIAL_ROSTER.forEach(seed => {
+          if (!data.some(d => d.name === seed.name)) {
+            data.push({
+              id: data.length, name: seed.name, role: seed.role, checkedIn: false,
+              ac: 0, upgrade: 0, services: 0, biz: 0, acc: 0, step: "", notes: ""
+            });
+          }
+        });
+        // Guarantee unique ids so toggleCheckIn/updateCounts lookups stay correct.
+        data.forEach((d, i) => { d.id = i; });
+      }
+    }
+  } catch(e) {}
+
+  function saveLocalState() {
+    try {
+      localStorage.setItem(STORAGE_KEY_LIVE, JSON.stringify({
+        data: data,
+        version: lastVersion,
+        date: getTodayString(),
+        timestamp: Date.now()
+      }));
+      localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historyRecords));
+    } catch(e) {}
+  }
+
+  // Undo History Stack (Max 25 actions)
+  let undoStack = [];
+
+  function pushUndoSnapshot() {
+    undoStack.push(JSON.stringify(data));
+    if (undoStack.length > 25) undoStack.shift();
+    updateUndoButtonState();
+  }
+
+  function undoLastAction() {
+    if (currentTab !== 'daily' || undoStack.length === 0) return;
+    const previousStateJSON = undoStack.pop();
+    const previousState = JSON.parse(previousStateJSON);
+    
+    data = previousState;
+    lastVersion = Date.now();
+    saveLocalState();
+    broadcastChange();
+    
+    renderTableStructure();
+    updateTotals();
+    reorderRows();
+    updateUndoButtonState();
+    flashAutoSaveBadge("↩️ Undid Last Action");
+  }
+
+  function updateUndoButtonState() {
+    const btn = document.getElementById('btnUndo');
+    if (btn) {
+      btn.disabled = (currentTab !== 'daily' || undoStack.length === 0);
+    }
+  }
+
+  let currentSort = {
+    column: 'name',
+    direction: 'asc'
+  };
+
+  function setColumnSort(col) {
+    if (currentSort.column === col) {
+      currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort.column = col;
+      currentSort.direction = (col === 'name' || col === 'step') ? 'asc' : 'desc';
+    }
+    updateSortHeaderIcons();
+    reorderRows();
+  }
+
+  function updateSortHeaderIcons() {
+    const cols = ['name', 'slam', 'ac', 'upgrade', 'services', 'biz', 'acc', 'step'];
+    cols.forEach(c => {
+      const th = document.getElementById(`th-${c}`);
+      const icon = document.getElementById(`sort-icon-${c}`);
+      if (th && icon) {
+        if (currentSort.column === c) {
+          th.classList.add('active-sort');
+          icon.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
+        } else {
+          th.classList.remove('active-sort');
+          icon.textContent = '↕️';
+        }
+      }
+    });
+  }
+
+  function getHitCount(p) {
+    let hits = 0;
+    if (p.ac > 0) hits++;
+    if (p.upgrade > 0) hits++;
+    if (p.services > 0) hits++;
+    if (p.biz > 0) hits++;
+    if (p.acc > 0) hits++;
+    return hits;
+  }
+
+  function getTotalUnits(p) {
+    return (p.ac || 0) + (p.upgrade || 0) + (p.services || 0) + (p.biz || 0) + (p.acc || 0);
+  }
+
+  function getDisplayList() {
+    if (currentTab === 'daily') {
+      return data;
+    }
+
+    if (currentTab === 'priorday') {
+      if (historyRecords.length > 0) {
+        return historyRecords[0].data || [];
+      }
+      return INITIAL_ROSTER.map((item, idx) => ({
+        id: idx,
+        name: item.name,
+        role: item.role,
+        checkedIn: false,
+        ac: 0,
+        upgrade: 0,
+        services: 0,
+        biz: 0,
+        acc: 0,
+        step: "-",
+        notes: ""
+      }));
+    }
+
+    let relevantRecords = [];
+    const now = new Date();
+
+    if (currentTab === 'weekly') {
+      if (selectedPeriodKey === 'current') {
+        const curWeek = getWeekNumber(now);
+        const curYear = now.getFullYear();
+        relevantRecords = historyRecords.filter(r => {
+          const rd = parseDateSafe(r.date);
+          return getWeekNumber(rd) === curWeek && rd.getFullYear() === curYear;
+        });
+      } else {
+        relevantRecords = historyRecords.filter(r => {
+          const rd = parseDateSafe(r.date);
+          return `${rd.getFullYear()}-W${getWeekNumber(rd)}` === selectedPeriodKey;
+        });
+      }
+    } else if (currentTab === 'monthly') {
+      if (selectedPeriodKey === 'current') {
+        const curMon = now.getMonth();
+        const curYear = now.getFullYear();
+        relevantRecords = historyRecords.filter(r => {
+          const rd = parseDateSafe(r.date);
+          return rd.getMonth() === curMon && rd.getFullYear() === curYear;
+        });
+      } else {
+        relevantRecords = historyRecords.filter(r => {
+          const rd = parseDateSafe(r.date);
+          const key = `${rd.getFullYear()}-${String(rd.getMonth() + 1).padStart(2, '0')}`;
+          return key === selectedPeriodKey;
+        });
+      }
+    } else if (currentTab === 'quarterly') {
+      if (selectedPeriodKey === 'current') {
+        const curQ = getQuarterString(now);
+        relevantRecords = historyRecords.filter(r => getQuarterString(parseDateSafe(r.date)) === curQ);
+      } else {
+        relevantRecords = historyRecords.filter(r => getQuarterString(parseDateSafe(r.date)) === selectedPeriodKey);
+      }
+    }
+
+    const memberMap = {};
+    INITIAL_ROSTER.forEach((m, idx) => {
+      memberMap[m.name] = {
+        id: idx,
+        name: m.name,
+        role: m.role,
+        checkedIn: false,
+        shiftsWorked: 0,
+        ac: 0,
+        upgrade: 0,
+        services: 0,
+        biz: 0,
+        acc: 0,
+        slamsAchieved: 0,
+        step: "-",
+        notes: ""
+      };
+    });
+
+    if (selectedPeriodKey === 'current') {
+      data.forEach(p => {
+        if (memberMap[p.name]) {
+          if (p.checkedIn) {
+            memberMap[p.name].shiftsWorked += 1;
+            memberMap[p.name].checkedIn = true;
+          }
+          memberMap[p.name].ac += p.ac;
+          memberMap[p.name].upgrade += p.upgrade;
+          memberMap[p.name].services += p.services;
+          memberMap[p.name].biz += p.biz;
+          memberMap[p.name].acc += p.acc;
+          if (getHitCount(p) === 5) memberMap[p.name].slamsAchieved += 1;
+        }
+      });
+    }
+
+    relevantRecords.forEach(rec => {
+      if (Array.isArray(rec.data)) {
+        rec.data.forEach(p => {
+          if (memberMap[p.name]) {
+            if (p.checkedIn) {
+              memberMap[p.name].shiftsWorked += 1;
+              memberMap[p.name].checkedIn = true;
+            }
+            memberMap[p.name].ac += (p.ac || 0);
+            memberMap[p.name].upgrade += (p.upgrade || 0);
+            memberMap[p.name].services += (p.services || 0);
+            memberMap[p.name].biz += (p.biz || 0);
+            memberMap[p.name].acc += (p.acc || 0);
+            if (getHitCount(p) === 5) memberMap[p.name].slamsAchieved += 1;
+          }
+        });
+      }
+    });
+
+    return Object.values(memberMap);
+  }
+
+  function sortComparator(a, b) {
+    let valA, valB;
+    if (currentSort.column === 'name') {
+      valA = a.name.toLowerCase();
+      valB = b.name.toLowerCase();
+    } else if (currentSort.column === 'slam') {
+      valA = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(a) : (a.slamsAchieved || 0);
+      valB = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(b) : (b.slamsAchieved || 0);
+    } else if (currentSort.column === 'step') {
+      valA = (a.step || '').toLowerCase();
+      valB = (b.step || '').toLowerCase();
+    } else {
+      valA = a[currentSort.column] || 0;
+      valB = b[currentSort.column] || 0;
+    }
+
+    if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+    if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+    return a.name.localeCompare(b.name);
+  }
+
+  function renderTopPerformersPodium() {
+    const container = document.getElementById('topPerformersGrid');
+    const subtitle = document.getElementById('topPerformersSubtitle');
+    if (!container) return;
+
+    const list = getDisplayList();
+    if (list.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-secondary); font-size:12px;">No active data available for this view.</div>';
+      return;
+    }
+
+    if (currentTab === 'daily') subtitle.textContent = '(Live Shift Leaderboard)';
+    else if (currentTab === 'priorday') subtitle.textContent = '(Prior Shift Leaderboard)';
+    else subtitle.textContent = `(${currentTab.toUpperCase()} Leaderboard)`;
+
+    // Score based on Grand Slam hits + total units
+    const sortedPerformers = [...list].sort((a, b) => {
+      const hitsA = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(a) : (a.slamsAchieved || 0);
+      const hitsB = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(b) : (b.slamsAchieved || 0);
+      if (hitsB !== hitsA) return hitsB - hitsA;
+      return getTotalUnits(b) - getTotalUnits(a);
+    }).filter(p => getTotalUnits(p) > 0 || (currentTab === 'daily' && p.checkedIn)).slice(0, 4);
+
+    if (sortedPerformers.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-secondary); font-size:12px; padding:6px 0;">Log metrics or check in staff to see top performers.</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    sortedPerformers.forEach((p, idx) => {
+      const hits = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(p) : (p.slamsAchieved || 0);
+      const units = getTotalUnits(p);
+      let rankClass = "rank-star";
+      let rankIcon = "⭐";
+      if (idx === 0) { rankClass = "rank-1"; rankIcon = "🥇"; }
+      else if (idx === 1) { rankClass = "rank-2"; rankIcon = "🥈"; }
+      else if (idx === 2) { rankClass = "rank-3"; rankIcon = "🥉"; }
+
+      const item = document.createElement('div');
+      item.className = 'performer-badge-card';
+      item.innerHTML = `
+        <div class="rank-icon ${rankClass}">${rankIcon}</div>
+        <div class="performer-info">
+          <span class="performer-name">${escapeHtml(p.name)}</span>
+          <span class="performer-stats">${hits === 5 || (currentTab !== 'daily' && hits > 0) ? '🏆 ' + hits + ' Slams' : hits + '/5 categories'} • ${units} units</span>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
+  function buildRowElement(p) {
+    const isLive = (currentTab === 'daily');
+    const isPrior = (currentTab === 'priorday');
+    const tr = document.createElement('tr');
+    tr.id = `row-${p.id}`;
+    if (p.checkedIn) tr.classList.add('checked-in-row');
+    const hits = getHitCount(p);
+    if ((isLive || isPrior) && hits === 5) tr.classList.add('grand-slam-row');
+
+    if (isLive) {
+      let slamBadge = `<span class="badge-progress">0/5</span>`;
+      if (hits === 5) slamBadge = `<span class="badge-grand-slam">🏆 GRAND SLAM!</span>`;
+      else if (hits === 4) slamBadge = `<span class="badge-progress almost">🎯 4/5 (1 Away)</span>`;
+      else if (hits > 0) slamBadge = `<span class="badge-progress">${hits}/5</span>`;
+
+      tr.innerHTML = `
+        <td class="col-sticky" style="cursor: pointer;" onclick="toggleCheckIn(${p.id})">
+          <div class="name-cell-wrap">
+            <span class="chk-badge" id="chk-badge-${p.id}">${p.checkedIn ? '✅' : '◻️'}</span>
+            <div class="name-cell">
+              <span class="member-name" id="name-${p.id}">${escapeHtml(p.name)}</span>
+              <span class="role-tag">${escapeHtml(p.role)}</span>
+            </div>
+          </div>
+        </td>
+        <td style="text-align:center;" id="val-slam-${p.id}">${slamBadge}</td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', -1)">−</button>
+            <span class="cnt-val" id="val-ac-${p.id}">${p.ac}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'upgrade', -1)">−</button>
+            <span class="cnt-val" id="val-up-${p.id}">${p.upgrade}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'upgrade', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'services', -1)">−</button>
+            <span class="cnt-val" id="val-srv-${p.id}">${p.services}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'services', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', -1)">−</button>
+            <span class="cnt-val" id="val-biz-${p.id}">${p.biz}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'biz', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', -1)">−</button>
+            <span class="cnt-val" id="val-acc-${p.id}">${p.acc}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'acc', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <select class="step-select" id="step-${p.id}" onchange="saveStep(${p.id}, this.value)">
+            <option value="">- None -</option>
+            <option value="Approach" ${p.step === 'Approach' ? 'selected' : ''}>Approach</option>
+            <option value="Probe" ${p.step === 'Probe' ? 'selected' : ''}>Probe</option>
+            <option value="Present" ${p.step === 'Present' ? 'selected' : ''}>Present</option>
+            <option value="Listen" ${p.step === 'Listen' ? 'selected' : ''}>Listen</option>
+            <option value="Extend" ${p.step === 'Extend' ? 'selected' : ''}>Extend</option>
+          </select>
+        </td>
+        <td>
+          <input class="notes-input" id="notes-${p.id}" type="text" placeholder="Add note / focus..." value="${escapeHtml(p.notes || '')}" onclick="event.stopPropagation()" oninput="saveNote(${p.id}, this.value)">
+        </td>
+      `;
+    } else if (isPrior) {
+      let slamBadge = `<span class="badge-progress">${hits}/5</span>`;
+      if (hits === 5) slamBadge = `<span class="badge-grand-slam">🏆 GRAND SLAM!</span>`;
+      else if (hits === 4) slamBadge = `<span class="badge-progress almost">🎯 4/5 (1 Away)</span>`;
+
+      tr.innerHTML = `
+        <td class="col-sticky">
+          <div class="name-cell-wrap" style="cursor: default;">
+            <span class="chk-badge">${p.checkedIn ? '✅' : '◻️'}</span>
+            <div class="name-cell">
+              <span class="member-name">${escapeHtml(p.name)}</span>
+              <span class="role-tag">${escapeHtml(p.role)}</span>
+            </div>
+          </div>
+        </td>
+        <td style="text-align:center;">${slamBadge}</td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.upgrade}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.services}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.biz}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.acc}</span></td>
+        <td style="text-align:center;"><span style="color:var(--text-secondary); font-size:12px;">${p.step || '-'}</span></td>
+        <td><span style="color:var(--text-secondary); font-size:12px;">${p.notes || '-'}</span></td>
+      `;
+    } else {
+      const slamBadge = p.slamsAchieved > 0 
+        ? `<span class="badge-grand-slam">🏆 ${p.slamsAchieved} Grand Slam${p.slamsAchieved > 1 ? 's' : ''}</span>`
+        : `<span class="badge-progress">0 Slams</span>`;
+      
+      tr.innerHTML = `
+        <td class="col-sticky">
+          <div class="name-cell-wrap" style="cursor: default;">
+            <span class="chk-badge" style="font-size: 13px; font-weight: 700;">${p.shiftsWorked}d</span>
+            <div class="name-cell">
+              <span class="member-name">${escapeHtml(p.name)}</span>
+              <span class="role-tag">${escapeHtml(p.role)} • ${p.shiftsWorked} Shifts</span>
+            </div>
+          </div>
+        </td>
+        <td style="text-align:center;">${slamBadge}</td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.upgrade}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.services}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.biz}</span></td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.acc}</span></td>
+        <td style="text-align:center;"><span style="color: var(--text-secondary); font-size: 12px;">${p.shiftsWorked > 0 ? (p.ac / p.shiftsWorked).toFixed(1) + ' AC/shift' : '-'}</span></td>
+        <td><span style="color: var(--text-secondary); font-size: 12px;">Services: ${p.shiftsWorked > 0 ? (p.services / p.shiftsWorked).toFixed(1) : '0'}/shift</span></td>
+      `;
+    }
+
+    return tr;
+  }
+
+  function renderTableStructure() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+
+    const list = getDisplayList();
+    const q = (document.getElementById("searchInput") ? document.getElementById("searchInput").value : "").toLowerCase().trim();
+    const role = document.getElementById("roleFilter") ? document.getElementById("roleFilter").value : "ALL";
+    const checkinFilter = document.getElementById("checkinFilter") ? document.getElementById("checkinFilter").value : "ALL";
+    const stepFilter = document.getElementById("stepFilter") ? document.getElementById("stepFilter").value : "ALL";
+    const slamFilter = document.getElementById("slamFilter") ? document.getElementById("slamFilter").value : "ALL";
+
+    // Filter members
+    const filteredList = list.filter(p => {
+      const matchName = !q || p.name.toLowerCase().includes(q);
+      const matchRole = (role === "ALL" || p.role.toLowerCase() === role.toLowerCase());
+      const isChecked = (currentTab === 'daily' || currentTab === 'priorday') ? !!p.checkedIn : ((p.shiftsWorked || 0) > 0);
+      const matchCheckin = (checkinFilter === "ALL" || (checkinFilter === "IN" && isChecked) || (checkinFilter === "OUT" && !isChecked));
+      const matchStep = (currentTab !== 'daily' || stepFilter === "ALL" || p.step === stepFilter);
+      
+      const hits = (currentTab === 'daily' || currentTab === 'priorday') ? getHitCount(p) : ((p.slamsAchieved || 0) > 0 ? 5 : 0);
+      let matchSlam = true;
+      if (slamFilter === "SLAM") matchSlam = (currentTab === 'daily' || currentTab === 'priorday') ? hits === 5 : (p.slamsAchieved || 0) > 0;
+      if (slamFilter === "NEAR") matchSlam = (currentTab === 'daily' || currentTab === 'priorday') ? hits === 4 : false;
+
+      return matchName && matchRole && matchCheckin && matchStep && matchSlam;
+    });
+
+    const countBadge = document.getElementById("teamCount");
+    if (countBadge) countBadge.textContent = `${filteredList.length} Team Members`;
+
+    tbody.innerHTML = '';
+
+    const isLive = (currentTab === 'daily');
+
+    if (isLive) {
+      const checkedMembers = filteredList.filter(d => d.checkedIn).sort(sortComparator);
+      const uncheckedMembers = filteredList.filter(d => !d.checkedIn).sort(sortComparator);
+
+      if (checkedMembers.length > 0) {
+        const divIn = document.createElement('tr');
+        divIn.className = 'section-divider-row';
+        divIn.id = 'header-checked-in';
+        divIn.innerHTML = `<td colspan="9" class="col-sticky">🟢 On Shift / Checked In (${checkedMembers.length})</td>`;
+        tbody.appendChild(divIn);
+
+        checkedMembers.forEach(p => {
+          tbody.appendChild(buildRowElement(p));
+        });
+      }
+
+      if (uncheckedMembers.length > 0) {
+        const divOut = document.createElement('tr');
+        divOut.className = 'section-divider-row';
+        divOut.id = 'header-not-checked-in';
+        divOut.innerHTML = `<td colspan="9" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
+        tbody.appendChild(divOut);
+
+        uncheckedMembers.forEach(p => {
+          tbody.appendChild(buildRowElement(p));
+        });
+      }
+    } else {
+      const sorted = [...filteredList].sort(sortComparator);
+      sorted.forEach(p => {
+        tbody.appendChild(buildRowElement(p));
+      });
+    }
+
+    renderTopPerformersPodium();
+    updateTotals();
+  }
+
+  function reorderRows() {
+    renderTableStructure();
+  }
+
+  function filterTable() {
+    renderTableStructure();
+  }
+
+  function toggleCheckIn(index) {
+    if (currentTab !== 'daily') return;
+    const member = data.find(d => d.id === index);
+    if (!member) return;
+    pushUndoSnapshot();
+    member.checkedIn = !member.checkedIn;
+    saveLocalState();
+    broadcastChange();
+    renderTableStructure();
+  }
+
+  function checkAll(status) {
+    if (currentTab !== 'daily') return;
+    pushUndoSnapshot();
+    data.forEach(d => {
+      d.checkedIn = status;
+    });
+    saveLocalState();
+    broadcastChange();
+    renderTableStructure();
+  }
+
+  function updateCounts(index, metric, delta) {
+    if (currentTab !== 'daily') return;
+    const member = data.find(d => d.id === index);
+    if (!member) return;
+
+    pushUndoSnapshot();
+    member[metric] = Math.max(0, member[metric] + delta);
+    if (member[metric] > 0 && !member.checkedIn) {
+      member.checkedIn = true;
+    }
+    saveLocalState();
+    broadcastChange();
+    renderTableStructure();
+  }
+
+  function saveStep(index, val) {
+    if (currentTab !== 'daily') return;
+    const member = data.find(d => d.id === index);
+    if (!member) return;
+    pushUndoSnapshot();
+    member.step = val;
+    saveLocalState();
+    broadcastChange();
+    renderTableStructure();
+  }
+
+  function saveNote(index, val) {
+    if (currentTab !== 'daily') return;
+    const member = data.find(d => d.id === index);
+    if (!member) return;
+    member.notes = val;
+    saveLocalState();
+    broadcastChange();
+  }
+
+  function updateTotals() {
+    const list = getDisplayList();
+    let totAc = 0, totUp = 0, totSrv = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
+
+    list.forEach(d => {
+      if (currentTab === 'daily') {
+        if (d.checkedIn) totCheckin++;
+        if (getHitCount(d) === 5) totSlam++;
+      } else if (currentTab === 'priorday') {
+        if (d.checkedIn) totCheckin++;
+        if (getHitCount(d) === 5) totSlam++;
+      } else {
+        if (d.shiftsWorked > 0) totCheckin += d.shiftsWorked;
+        totSlam += (d.slamsAchieved || 0);
+      }
+      totAc += (d.ac || 0);
+      totUp += (d.upgrade || 0);
+      totSrv += (d.services || 0);
+      totBiz += (d.biz || 0);
+      totAcc += (d.acc || 0);
+    });
+
+    const isLive = (currentTab === 'daily');
+    const isPrior = (currentTab === 'priorday');
+    const lblCheckin = document.getElementById("lbl-kpi-checkin");
+    const kpiCheckin = document.getElementById("kpi-checkin");
+    if (lblCheckin) lblCheckin.textContent = (isLive || isPrior) ? "👥 Checked In" : "👥 Total Shifts";
+    if (kpiCheckin) kpiCheckin.textContent = (isLive || isPrior) ? `${totCheckin} / ${list.length}` : `${totCheckin} Shifts`;
+
+    const elSlam = document.getElementById("kpi-grandslam");
+    if (elSlam) elSlam.textContent = totSlam;
+    const elAc = document.getElementById("kpi-ac");
+    if (elAc) elAc.textContent = totAc;
+    const elUp = document.getElementById("kpi-upgrade");
+    if (elUp) elUp.textContent = totUp;
+    const elSrv = document.getElementById("kpi-services");
+    if (elSrv) elSrv.textContent = totSrv;
+    const elBiz = document.getElementById("kpi-biz");
+    if (elBiz) elBiz.textContent = totBiz;
+    const elAcc = document.getElementById("kpi-acc");
+    if (elAcc) elAcc.textContent = totAcc;
+
+    const totName = document.getElementById("tot-name");
+    if (totName) totName.textContent = isLive ? "TOTAL STORE SCORE" : `${currentTab.toUpperCase()} TOTAL`;
+    const totSlamEl = document.getElementById("tot-slam");
+    if (totSlamEl) totSlamEl.textContent = (isLive || isPrior) ? `${totSlam} / ${list.length}` : `${totSlam} Slams`;
+    const totAcEl = document.getElementById("tot-ac");
+    if (totAcEl) totAcEl.textContent = totAc;
+    const totUpEl = document.getElementById("tot-up");
+    if (totUpEl) totUpEl.textContent = totUp;
+    const totSrvEl = document.getElementById("tot-srv");
+    if (totSrvEl) totSrvEl.textContent = totSrv;
+    const totBizEl = document.getElementById("tot-biz");
+    if (totBizEl) totBizEl.textContent = totBiz;
+    const totAccEl = document.getElementById("tot-acc");
+    if (totAccEl) totAccEl.textContent = totAcc;
+  }
+
+  /* 📑 TAB SWITCHING LOGIC */
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+
+    const periodSelector = document.getElementById('periodSelector');
+    const mainTableCard = document.getElementById('mainTableCard');
+    const historyCard = document.getElementById('historyCard');
+    const filterPanel = document.getElementById('filterPanel');
+    const btnUndo = document.getElementById('btnUndo');
+    const btnClearCheckins = document.getElementById('btnClearCheckins');
+    const btnReset = document.getElementById('btnReset');
+
+    if (tab === 'history') {
+      mainTableCard.style.display = 'none';
+      historyCard.style.display = 'block';
+      periodSelector.style.display = 'none';
+      filterPanel.style.display = 'none';
+      if (btnUndo) btnUndo.style.display = 'none';
+      btnClearCheckins.style.display = 'none';
+      btnReset.style.display = 'none';
+      renderHistoryList();
+      return;
+    }
+
+    mainTableCard.style.display = 'block';
+    historyCard.style.display = 'none';
+    filterPanel.style.display = 'flex';
+
+    if (tab === 'daily') {
+      periodSelector.style.display = 'none';
+      if (btnUndo) btnUndo.style.display = 'inline-flex';
+      btnClearCheckins.style.display = 'inline-flex';
+      btnReset.style.display = 'inline-flex';
+      document.getElementById('th-notes').textContent = 'Notes / Focus';
+      document.getElementById('tot-notes').textContent = '-';
+    } else if (tab === 'priorday') {
+      periodSelector.style.display = 'none';
+      if (btnUndo) btnUndo.style.display = 'none';
+      btnClearCheckins.style.display = 'none';
+      btnReset.style.display = 'none';
+      document.getElementById('th-notes').textContent = 'Notes / Focus';
+      document.getElementById('tot-notes').textContent = historyRecords.length > 0 ? `Archive: ${historyRecords[0].date}` : 'No Prior Day Data';
+    } else {
+      periodSelector.style.display = 'inline-block';
+      if (btnUndo) btnUndo.style.display = 'none';
+      btnClearCheckins.style.display = 'none';
+      btnReset.style.display = 'none';
+      document.getElementById('th-notes').textContent = 'Performance Pace';
+      document.getElementById('tot-notes').textContent = 'Store Summary';
+      populatePeriodSelector(tab);
+    }
+
+    renderTableStructure();
+    updateSortHeaderIcons();
+    updateTotals();
+    reorderRows();
+    updateUndoButtonState();
+  }
+
+  function populatePeriodSelector(tab) {
+    const sel = document.getElementById('periodSelector');
+    sel.innerHTML = '';
+    const now = new Date();
+
+    if (tab === 'weekly') {
+      const curWeek = getWeekNumber(now);
+      sel.innerHTML += `<option value="current">📅 This Week (Week ${curWeek}, ${now.getFullYear()})</option>`;
+      
+      const weekSet = new Set();
+      historyRecords.forEach(r => {
+        const d = parseDateSafe(r.date);
+        weekSet.add(`${d.getFullYear()}-W${getWeekNumber(d)}`);
+      });
+      weekSet.forEach(w => {
+        sel.innerHTML += `<option value="${w}">📊 Week ${w.split('-W')[1]} (${w.split('-W')[0]})</option>`;
+      });
+    } else if (tab === 'monthly') {
+      sel.innerHTML += `<option value="current">📅 This Month (${getMonthString(now)})</option>`;
+      
+      const monthSet = new Set();
+      historyRecords.forEach(r => {
+        const d = parseDateSafe(r.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthSet.add(key);
+      });
+      monthSet.forEach(m => {
+        const [y, mon] = m.split('-');
+        const dateObj = new Date(parseInt(y), parseInt(mon) - 1, 1);
+        sel.innerHTML += `<option value="${m}">🗓️ ${getMonthString(dateObj)}</option>`;
+      });
+    } else if (tab === 'quarterly') {
+      sel.innerHTML += `<option value="current">📅 Current Quarter (${getQuarterString(now)})</option>`;
+      
+      const qSet = new Set();
+      historyRecords.forEach(r => {
+        qSet.add(getQuarterString(parseDateSafe(r.date)));
+      });
+      qSet.forEach(q => {
+        sel.innerHTML += `<option value="${q}">📈 ${q}</option>`;
+      });
+    }
+
+    selectedPeriodKey = sel.value;
+  }
+
+  function onPeriodChange() {
+    selectedPeriodKey = document.getElementById('periodSelector').value;
+    renderTableStructure();
+    updateTotals();
+    reorderRows();
+  }
+
+  /* 💾 ARCHIVE & HISTORY LOGIC */
+  function archiveCurrentDay(silent = false, targetDate = null) {
+    const today = targetDate || getTodayString();
+    const existingIdx = historyRecords.findIndex(r => r.date === today);
+
+    const snapshot = {
+      date: today,
+      timestamp: Date.now(),
+      data: JSON.parse(JSON.stringify(data))
+    };
+
+    if (existingIdx >= 0) {
+      historyRecords[existingIdx] = snapshot;
+    } else {
+      historyRecords.unshift(snapshot);
+    }
+    saveLocalState();
+    if (!silent) {
+      flashAutoSaveBadge(`💾 Auto-Archived (${today})`);
+    }
+  }
+
+  function flashAutoSaveBadge(txt) {
+    const badge = document.getElementById('autoSaveBadge');
+    if (badge) {
+      badge.textContent = txt;
+      badge.style.borderColor = '#34c759';
+      badge.style.color = '#34c759';
+      setTimeout(() => {
+        badge.textContent = '⏰ Auto-Archive: 8:59 PM • Auto-Reset: 11:59 PM';
+        badge.style.borderColor = '';
+        badge.style.color = '';
+      }, 8000);
+    }
+  }
+
+  /* ⏰ HOURLY AUTO-SAVE, 8:59 PM AUTO-ARCHIVE & 11:59 PM RESET ENGINE */
+  function setupAutoEngines() {
+    let lastHourlySaveHour = -1;
+    let archivedAt859ForDate = "";
+    let resetAt1159ForDate = "";
+
+    function runEngines() {
+      const now = new Date();
+      const curHour = now.getHours();
+      const curMin = now.getMinutes();
+      const today = getTodayString();
+
+      // 1. Hourly State Checkpoint (every hour on the hour)
+      if (curHour !== lastHourlySaveHour) {
+        lastHourlySaveHour = curHour;
+        saveLocalState();
+        flashAutoSaveBadge(`💾 Auto-Saved Hourly Checkpoint (${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`);
+      }
+
+      // 2. 8:59 PM EOD Archive: Copy data to Prior Day & History without deleting live daily data
+      const isPast859PM = (curHour === 20 && curMin >= 59) || (curHour >= 21);
+      if (isPast859PM && archivedAt859ForDate !== today) {
+        const hasActiveData = data.some(d => d.checkedIn || (d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
+        if (hasActiveData) {
+          archiveCurrentDay(true, today);
+          archivedAt859ForDate = today;
+          flashAutoSaveBadge(`🌙 Shift Archived at 8:59 PM (Copied to Prior Day)`);
+          broadcastChange();
+        }
+      }
+
+      // 3. 11:59 PM EOD Reset: Clear live board for next morning
+      const isPast1159PM = (curHour === 23 && curMin >= 59);
+      if (isPast1159PM && resetAt1159ForDate !== today) {
+        const hasActiveData = data.some(d => d.checkedIn || (d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
+        if (hasActiveData) {
+          // Final snapshot before resetting
+          archiveCurrentDay(true, today);
+        }
+
+        // Reset live daily board for next morning
+        data.forEach(d => {
+          d.checkedIn = false;
+          d.ac = 0;
+          d.upgrade = 0;
+          d.services = 0;
+          d.biz = 0;
+          d.acc = 0;
+          d.step = "";
+          d.notes = "";
+        });
+
+        resetAt1159ForDate = today;
+        lastVersion = Date.now();
+        saveLocalState();
+        broadcastChange();
+        flashAutoSaveBadge(`🌅 Live Tracker Reset at 11:59 PM for Tomorrow`);
+
+        if (currentTab === 'daily') {
+          renderTableStructure();
+          updateTotals();
+          reorderRows();
+        } else if (currentTab === 'priorday' || currentTab === 'history') {
+          switchTab(currentTab);
+        }
+      }
+    }
+
+    // Check every 20 seconds
+    setInterval(runEngines, 20000);
+    runEngines();
+  }
+
+  function renderHistoryList() {
+    const container = document.getElementById('historyListContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (historyRecords.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
+          <h3>No Archived Shifts Yet</h3>
+          <p style="margin-top: 6px; font-size: 13px;">Shifts auto-archive daily at 8:59 PM to build your historical performance logs.</p>
+        </div>
+      `;
+      return;
+    }
+
+    historyRecords.forEach((rec, idx) => {
+      let recAc = 0, recUp = 0, recSrv = 0, recBiz = 0, recAcc = 0, recSlam = 0, recChecked = 0;
+      rec.data.forEach(p => {
+        if (p.checkedIn) recChecked++;
+        recAc += (p.ac || 0);
+        recUp += (p.upgrade || 0);
+        recSrv += (p.services || 0);
+        recBiz += (p.biz || 0);
+        recAcc += (p.acc || 0);
+        if (getHitCount(p) === 5) recSlam++;
+      });
+
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `
+        <div class="history-info">
+          <div class="history-date">📅 ${rec.date}</div>
+          <div class="history-meta">👥 ${recChecked} Checked In • 🏆 ${recSlam} Grand Slams • 🍎 ${recAc} AC+ • 🆙 ${recUp} Upgrades • 🛍️ ${recSrv} Services • 💼 ${recBiz} Biz • 🎧 ${recAcc} Acc</div>
+        </div>
+        <div class="history-actions">
+          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="exportHistoryCSV(${idx})">📥 Export Day CSV</button>
+          <button class="secondary" style="min-height: 32px; padding: 4px 10px; font-size: 12px;" onclick="restoreHistoryToLive(${idx})">🔄 Restore to Live</button>
+          <button class="danger" style="min-height: 32px; padding: 4px 8px; font-size: 12px;" onclick="deleteHistoryRecord(${idx})">🗑️</button>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+
+  function restoreHistoryToLive(idx) {
+    const rec = historyRecords[idx];
+    if (!rec) return;
+    if (confirm(`Load shift from ${rec.date} into your Live Daily tracker? Current unsaved live counts will be overwritten.`)) {
+      data = JSON.parse(JSON.stringify(rec.data));
+      lastVersion = Date.now();
+      saveLocalState();
+      switchTab('daily');
+      broadcastChange();
+    }
+  }
+
+  function deleteHistoryRecord(idx) {
+    if (confirm(`Permanently remove record for ${historyRecords[idx].date}?`)) {
+      historyRecords.splice(idx, 1);
+      saveLocalState();
+      renderHistoryList();
+    }
+  }
+
+  function exportHistoryCSV(idx) {
+    const rec = historyRecords[idx];
+    if (!rec) return;
+    let csv = `Shift Archive - ${rec.date}\nChecked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n`;
+    rec.data.forEach(p => {
+      const hits = getHitCount(p);
+      const slamLabel = hits === 5 ? "GRAND SLAM (5/5) 🏆" : `${hits}/5`;
+      const inStatus = p.checkedIn ? "Yes" : "No";
+      csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc},"${p.step || ''}","${p.notes || ''}"\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.setAttribute("href", url);
+    a.setAttribute("download", `PZ_Tracker_Archive_${rec.date}.csv`);
+    a.click();
+  }
+
+  function resetCounts() {
+    if (confirm("Reset today's active metrics, steps, and check-ins to 0? (Archived history will remain saved)")) {
+      data.forEach(d => {
+        d.checkedIn = false;
+        d.ac = 0;
+        d.upgrade = 0;
+        d.services = 0;
+        d.biz = 0;
+        d.acc = 0;
+        d.step = "";
+        d.notes = "";
+        const noteInput = document.getElementById(`notes-${d.id}`);
+        if (noteInput) noteInput.value = "";
+        const stepSelect = document.getElementById(`step-${d.id}`);
+        if (stepSelect) stepSelect.value = "";
+        renderCheckInVisual(d.id);
+      });
+      lastVersion = Date.now();
+      saveLocalState();
+      updateTotals();
+      broadcastChange();
+      setTimeout(reorderRows, 60);
+    }
+  }
+
+  window.clearAllBrowserCache = function() {
+    if (confirm("Clear all browser cache and local storage for PZ Tracker? This will reset the app state and re-prompt for passcode 7040.")) {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch(e) {}
+      location.reload();
+    }
+  };
+
+  function exportCSV() {
+    let csv = `PZ Tracker Export (${currentTab.toUpperCase()})\n`;
+    if (currentTab === 'daily' || currentTab === 'priorday') {
+      csv += "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
+      const list = getDisplayList();
+      const exportData = [...list].sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0));
+      exportData.forEach(p => {
+        const hits = getHitCount(p);
+        const slamLabel = hits === 5 ? "GRAND SLAM (5/5) 🏆" : `${hits}/5`;
+        const inStatus = p.checkedIn ? "Yes" : "No";
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc},"${p.step || ''}","${p.notes || ''}"\n`;
+      });
+    } else {
+      const list = getDisplayList();
+      csv += "Name,Job Title,Shifts Worked,Grand Slam Achieved,AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧)\n";
+      list.forEach(p => {
+        csv += `"${p.name}","${p.role}",${p.shiftsWorked},${p.slamsAchieved},${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc}\n`;
+      });
+    }
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.setAttribute("href", url);
+    a.setAttribute("download", `PZ_Tracker_${currentTab.toUpperCase()}_Report.csv`);
+    a.click();
+  }
+
+  /* 🌐 ZERO-CONFIG REAL-TIME CLOUD SYNC ENGINE */
+  function initCloudSync() {
+    try {
+      if (typeof mqtt === 'undefined' || !mqtt || typeof mqtt.connect !== 'function') {
+        setSyncBadge('💾 Local Mode');
+        return;
+      }
+      const brokerUrl = "wss://broker.emqx.io:8084/mqtt";
+      mqttClient = mqtt.connect(brokerUrl, {
+        clientId: CLIENT_ID,
+        clean: true,
+        connectTimeout: 4000,
+        reconnectPeriod: 3000
+      });
+
+      mqttClient.on('connect', () => {
+        setSyncBadge('🟢 Live Multi-Device Sync Active');
+        mqttClient.subscribe(SYNC_TOPIC, { qos: 1 });
+        mqttClient.publish(SYNC_TOPIC + "/req", JSON.stringify({ clientId: CLIENT_ID, version: lastVersion }));
+      });
+
+      mqttClient.on('message', (topic, payload) => {
+        try {
+          const msg = JSON.parse(payload.toString());
+          if (topic.endsWith('/req') && msg.clientId !== CLIENT_ID) {
+            if (lastVersion > 0) {
+              mqttClient.publish(SYNC_TOPIC, JSON.stringify({
+                clientId: CLIENT_ID,
+                version: lastVersion,
+                data: data,
+                history: historyRecords
+              }), { qos: 1, retain: true });
+            }
+            return;
+          }
+
+          if (msg.clientId !== CLIENT_ID && msg.data && msg.version && msg.version > lastVersion) {
+            lastVersion = msg.version;
+            msg.data.forEach(remote => {
+              const local = data.find(d => d.name === remote.name);
+              if (local) {
+                local.checkedIn = remote.checkedIn;
+                local.ac = remote.ac;
+                local.upgrade = remote.upgrade;
+                local.services = remote.services;
+                local.biz = remote.biz;
+                local.acc = remote.acc;
+                local.step = remote.step || "";
+                local.notes = remote.notes;
+              } else {
+                // Member added on another device — add them here too.
+                data.push({
+                  id: data.length,
+                  name: remote.name,
+                  role: remote.role || "Specialist",
+                  checkedIn: !!remote.checkedIn,
+                  ac: remote.ac || 0,
+                  upgrade: remote.upgrade || 0,
+                  services: remote.services || 0,
+                  biz: remote.biz || 0,
+                  acc: remote.acc || 0,
+                  step: remote.step || "",
+                  notes: remote.notes || ""
+                });
+              }
+            });
+            data.forEach((d, i) => { d.id = i; });
+            if (Array.isArray(msg.history)) {
+              historyRecords = msg.history;
+            }
+            saveLocalState();
+            if (currentTab === 'daily') {
+              updateTotals();
+              reorderRows();
+            } else if (currentTab === 'history') {
+              renderHistoryList();
+            } else {
+              renderTableStructure();
+              updateTotals();
+              reorderRows();
+            }
+            setSyncBadge('🟢 Live Multi-Device Sync Active');
+          }
+        } catch(err) {}
+      });
+
+      mqttClient.on('error', () => setSyncBadge('💾 Saved to iPad'));
+      mqttClient.on('offline', () => setSyncBadge('💾 Saved to iPad'));
+    } catch(e) {
+      setSyncBadge('💾 Saved to iPad');
+    }
+  }
+
+  function broadcastChange() {
+    lastVersion = Date.now();
+    saveLocalState();
+    if (mqttClient && mqttClient.connected) {
+      try {
+        mqttClient.publish(SYNC_TOPIC, JSON.stringify({
+          clientId: CLIENT_ID,
+          version: lastVersion,
+          data: data,
+          history: historyRecords
+        }), { qos: 1, retain: true });
+      } catch(e) {}
+    }
+  }
+
+  function setSyncBadge(txt) {
+    const el = document.getElementById('syncStatus');
+    if (el) el.textContent = txt;
+  }
+
+  window.promptAddTeamMember = function() {
+    const name = prompt("Enter team member full name:");
+    if (!name || !name.trim()) return;
+    const role = prompt("Enter job title (e.g., Specialist, Expert, Creative, Creative Pro, Pro, Business Pro):", "Specialist");
+    const cleanRole = role && role.trim() ? role.trim() : "Specialist";
+    
+    pushUndoSnapshot();
+    const newMember = {
+      id: data.length,
+      name: name.trim(),
+      role: cleanRole,
+      checkedIn: true,
+      ac: 0,
+      upgrade: 0,
+      services: 0,
+      biz: 0,
+      acc: 0,
+      step: "",
+      notes: ""
+    };
+    data.push(newMember);
+    data.forEach((d, i) => { d.id = i; });
+    saveLocalState();
+    broadcastChange();
+    renderTableStructure();
+  };
+
+  // Global Scope Bindings for All Browser Environments
+  window.promptAddTeamMember = promptAddTeamMember;
+  window.toggleCheckIn = toggleCheckIn;
+  window.updateCounts = updateCounts;
+  window.saveStep = saveStep;
+  window.saveNote = saveNote;
+  window.checkAll = checkAll;
+  window.undoLastAction = undoLastAction;
+  window.exportCSV = exportCSV;
+  window.switchTab = switchTab;
+  window.setColumnSort = setColumnSort;
+  window.resetCounts = resetCounts;
+  window.clearAllBrowserCache = clearAllBrowserCache;
+  window.renderTableStructure = renderTableStructure;
+
+  // Initialize
+  renderTableStructure();
+  updateSortHeaderIcons();
+  updateTotals();
+  reorderRows();
+  initCloudSync();
+  setupAutoEngines();
+</script>
+</body>
+</html>
