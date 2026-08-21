@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>🛍️ PZ Tracker</title>
+<title>🛍️ PZ ScoreBoard</title>
 <!-- Lightweight MQTT over WebSockets for Instant Serverless Cloud Sync -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
@@ -771,7 +771,7 @@
     <div class="passcode-modal" id="passcodeModal">
       <div class="passcode-icon">🔒</div>
       <h1 class="passcode-title">Enter Passcode</h1>
-      <p class="passcode-subtitle">Access PZ Tracker</p>
+      <p class="passcode-subtitle">Access PZ ScoreBoard</p>
       
       <!-- Passcode Input Box -->
       <input type="password" id="passcodeInput" class="passcode-input-box" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" autocomplete="off" autofocus oninput="onPasscodeInputChange(this.value)" onkeydown="if(event.key==='Enter') submitPasscode()">
@@ -907,7 +907,7 @@
   <!-- Top Action Bar -->
   <div class="top-bar">
     <div class="app-title">
-      🛍️ PZ Tracker
+      🛍️ PZ ScoreBoard
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
       <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Archive: 8:59 PM • Auto-Reset: 11:59 PM</span>
     </div>
@@ -2077,7 +2077,7 @@
         lastVersion = Date.now();
         saveLocalState();
         broadcastChange();
-        flashAutoSaveBadge(`🌅 Live Tracker Reset at 11:59 PM for Tomorrow`);
+        flashAutoSaveBadge(`🌅 Live ScoreBoard Reset at 11:59 PM for Tomorrow`);
 
         if (currentTab === 'daily') {
           renderTableStructure();
@@ -2141,7 +2141,7 @@
   function restoreHistoryToLive(idx) {
     const rec = historyRecords[idx];
     if (!rec) return;
-    if (confirm(`Load shift from ${rec.date} into your Live Daily tracker? Current unsaved live counts will be overwritten.`)) {
+    if (confirm(`Load shift from ${rec.date} into your Live Daily scoreboard? Current unsaved live counts will be overwritten.`)) {
       data = JSON.parse(JSON.stringify(rec.data));
       lastVersion = Date.now();
       saveLocalState();
@@ -2172,7 +2172,7 @@
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.setAttribute("href", url);
-    a.setAttribute("download", `PZ_Tracker_Archive_${rec.date}.csv`);
+    a.setAttribute("download", `PZ_ScoreBoard_Archive_${rec.date}.csv`);
     a.click();
   }
 
@@ -2202,7 +2202,7 @@
   }
 
   window.clearAllBrowserCache = function() {
-    if (confirm("Clear all browser cache and local storage for PZ Tracker? This will reset the app state and re-prompt for passcode 7040.")) {
+    if (confirm("Clear all browser cache and local storage for PZ ScoreBoard? This will reset the app state and re-prompt for passcode 7040.")) {
       try {
         localStorage.clear();
         sessionStorage.clear();
@@ -2212,7 +2212,7 @@
   };
 
   function exportCSV() {
-    let csv = `PZ Tracker Export (${currentTab.toUpperCase()})\n`;
+    let csv = `PZ ScoreBoard Export (${currentTab.toUpperCase()})\n`;
     if (currentTab === 'daily' || currentTab === 'priorday') {
       csv += "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
       const list = getDisplayList();
@@ -2235,7 +2235,7 @@
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.setAttribute("href", url);
-    a.setAttribute("download", `PZ_Tracker_${currentTab.toUpperCase()}_Report.csv`);
+    a.setAttribute("download", `PZ_ScoreBoard_${currentTab.toUpperCase()}_Report.csv`);
     a.click();
   }
 
