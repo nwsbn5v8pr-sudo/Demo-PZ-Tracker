@@ -1801,7 +1801,7 @@
     if (!member) return;
 
     pushUndoSnapshot();
-    member[metric] = Math.max(0, member[metric] + delta);
+    member[metric] = Math.max(0, Number(member[metric] || 0) + delta);
     if (member[metric] > 0 && !member.checkedIn) {
       member.checkedIn = true;
     }
