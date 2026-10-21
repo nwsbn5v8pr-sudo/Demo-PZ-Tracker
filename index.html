@@ -2073,7 +2073,7 @@
       // 2. 11:59 PM EOD Archive: save the final day snapshot immediately before reset
       const isPast1159PM = (curHour === 23 && curMin >= 59);
       if (isPast1159PM && archivedAt1159ForDate !== today) {
-        const hasActiveData = data.some(d => d.checkedIn || (d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
+        const hasActiveData = data.some(d => d.checkedIn || (d.demo + d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
         if (hasActiveData) {
           archiveCurrentDay(true, today);
           archivedAt1159ForDate = today;
@@ -2085,7 +2085,7 @@
       // 3. 11:59 PM EOD Reset: Clear live board for next morning
       const isPast1159PM = (curHour === 23 && curMin >= 59);
       if (isPast1159PM && resetAt1159ForDate !== today) {
-        const hasActiveData = data.some(d => d.checkedIn || (d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
+        const hasActiveData = data.some(d => d.checkedIn || (d.demo + d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
         if (hasActiveData) {
           // Final snapshot before resetting
           archiveCurrentDay(true, today);
@@ -2094,6 +2094,7 @@
         // Reset live daily board for next morning
         data.forEach(d => {
           d.checkedIn = false;
+          d.demo = 0;
           d.ac = 0;
           d.upgrade = 0;
           d.services = 0;
