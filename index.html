@@ -1136,7 +1136,9 @@
     {"name": "Emilio Reyes", "role": "Specialist"}
   ];
 
-  let currentTab = 'daily'; // 'daily' | 'priorday' | 'weekly' | 'monthly' | 'quarterly' | 'history'
+  let currentTab = 'daily';
+  // Display preference only; team members and their data remain in the roster.
+  let uncheckedMembersCollapsed = true; // 'daily' | 'priorday' | 'weekly' | 'monthly' | 'quarterly' | 'history'
   let selectedPeriodKey = 'current';
 
   // Live active shift data
@@ -1748,11 +1750,13 @@
         const divOut = document.createElement('tr');
         divOut.className = 'section-divider-row';
         divOut.id = 'header-not-checked-in';
-        divOut.innerHTML = `<td colspan="10" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
+        divOut.innerHTML = `<td colspan="10" class="col-sticky"><button type="button" onclick="toggleUncheckedMembersCollapsed()" aria-expanded="${!uncheckedMembersCollapsed}" style="width:100%;text-align:left;background:transparent;border:0;color:inherit;font:inherit;padding:0;cursor:pointer;">${uncheckedMembersCollapsed ? '▸' : '▾'} ⚪ Not Checked In (${uncheckedMembers.length}) · ${uncheckedMembersCollapsed ? 'Show' : 'Hide'}</button></td>`;
         tbody.appendChild(divOut);
 
         uncheckedMembers.forEach(p => {
-          tbody.appendChild(buildRowElement(p));
+          const row = buildRowElement(p);
+          if (uncheckedMembersCollapsed) row.style.display = 'none';
+          tbody.appendChild(row);
         });
       }
     } else {
@@ -1764,6 +1768,11 @@
 
     renderTopPerformersPodium();
     updateTotals();
+  }
+
+  function toggleUncheckedMembersCollapsed() {
+    uncheckedMembersCollapsed = !uncheckedMembersCollapsed;
+    renderTableStructure();
   }
 
   function reorderRows() {
@@ -2045,7 +2054,7 @@
   /* ⏰ HOURLY AUTO-SAVE, 8:59 PM AUTO-ARCHIVE & 11:59 PM RESET ENGINE */
   function setupAutoEngines() {
     let lastHourlySaveHour = -1;
-    let archivedAt859ForDate = "";
+    let archivedAt1159ForDate = "";
     let resetAt1159ForDate = "";
 
     function runEngines() {
@@ -2061,14 +2070,14 @@
         flashAutoSaveBadge(`💾 Auto-Saved Hourly Checkpoint (${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})`);
       }
 
-      // 2. 8:59 PM EOD Archive: Copy data to Prior Day & History without deleting live daily data
-      const isPast859PM = (curHour === 20 && curMin >= 59) || (curHour >= 21);
-      if (isPast859PM && archivedAt859ForDate !== today) {
+      // 2. 11:59 PM EOD Archive: save the final day snapshot immediately before reset
+      const isPast1159PM = (curHour === 23 && curMin >= 59);
+      if (isPast1159PM && archivedAt1159ForDate !== today) {
         const hasActiveData = data.some(d => d.checkedIn || (d.ac + d.upgrade + d.services + d.biz + d.acc) > 0);
         if (hasActiveData) {
           archiveCurrentDay(true, today);
-          archivedAt859ForDate = today;
-          flashAutoSaveBadge(`🌙 Shift Archived at 8:59 PM (Copied to Prior Day)`);
+          archivedAt1159ForDate = today;
+          flashAutoSaveBadge(`🌙 Shift Archived at 11:59 PM (Copied to Prior Day)`);
           broadcastChange();
         }
       }
@@ -2124,7 +2133,7 @@
       container.innerHTML = `
         <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
           <h3>No Archived Shifts Yet</h3>
-          <p style="margin-top: 6px; font-size: 13px;">Shifts auto-archive daily at 8:59 PM to build your historical performance logs.</p>
+          <p style="margin-top: 6px; font-size: 13px;">Shifts auto-archive daily at 11:59 PM to build your historical performance logs.</p>
         </div>
       `;
       return;
