@@ -1032,6 +1032,9 @@
             <th style="text-align:center;" id="th-slam" onclick="setColumnSort('slam')">
               🏆 Status <span class="sort-icon" id="sort-icon-slam">↕️</span>
             </th>
+            <th style="text-align:center;" id="th-demo" onclick="setColumnSort('demo')">
+              🤳 Demo <span class="sort-icon" id="sort-icon-demo">↕️</span>
+            </th>
             <th style="text-align:center;" id="th-ac" onclick="setColumnSort('ac')">
               🍎 AppleCare+ <span class="sort-icon" id="sort-icon-ac">↕️</span>
             </th>
@@ -1058,6 +1061,7 @@
           <tr>
             <td class="col-sticky" id="tot-name">TOTAL STORE SCORE</td>
             <td style="text-align:center;" id="tot-slam">0 / 1</td>
+            <td style="text-align:center;" id="tot-demo">0</td>
             <td style="text-align:center;" id="tot-ac">0</td>
             <td style="text-align:center;" id="tot-up">0</td>
             <td style="text-align:center;" id="tot-srv">0</td>
@@ -1146,6 +1150,7 @@
     services: 0,
     biz: 0,
     acc: 0,
+    demo: 0,
     step: "",
     notes: ""
   }));
@@ -1323,7 +1328,7 @@
   }
 
   function updateSortHeaderIcons() {
-    const cols = ['name', 'slam', 'ac', 'upgrade', 'services', 'biz', 'acc', 'step'];
+    const cols = ['name', 'slam', 'demo', 'ac', 'upgrade', 'services', 'biz', 'acc', 'step'];
     cols.forEach(c => {
       const th = document.getElementById(`th-${c}`);
       const icon = document.getElementById(`sort-icon-${c}`);
@@ -1350,7 +1355,7 @@
   }
 
   function getTotalUnits(p) {
-    return (p.ac || 0) + (p.upgrade || 0) + (p.services || 0) + (p.biz || 0) + (p.acc || 0);
+    return (p.demo || 0) + (p.ac || 0) + (p.upgrade || 0) + (p.services || 0) + (p.biz || 0) + (p.acc || 0);
   }
 
   function getDisplayList() {
@@ -1431,6 +1436,7 @@
         services: 0,
         biz: 0,
         acc: 0,
+        demo: 0,
         slamsAchieved: 0,
         step: "-",
         notes: ""
@@ -1444,6 +1450,7 @@
             memberMap[p.name].shiftsWorked += 1;
             memberMap[p.name].checkedIn = true;
           }
+          memberMap[p.name].demo += (p.demo || 0);
           memberMap[p.name].ac += p.ac;
           memberMap[p.name].upgrade += p.upgrade;
           memberMap[p.name].services += p.services;
@@ -1462,6 +1469,7 @@
               memberMap[p.name].shiftsWorked += 1;
               memberMap[p.name].checkedIn = true;
             }
+            memberMap[p.name].demo += (p.demo || 0);
             memberMap[p.name].ac += (p.ac || 0);
             memberMap[p.name].upgrade += (p.upgrade || 0);
             memberMap[p.name].services += (p.services || 0);
@@ -1576,6 +1584,13 @@
         <td style="text-align:center;" id="val-slam-${p.id}">${slamBadge}</td>
         <td style="text-align:center;">
           <div class="counter-box">
+            <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'demo', -1)">−</button>
+            <span class="cnt-val" id="val-demo-${p.id}">${p.demo || 0}</span>
+            <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'demo', 1)">+</button>
+          </div>
+        </td>
+        <td style="text-align:center;">
+          <div class="counter-box">
             <button type="button" class="cnt-btn minus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', -1)">−</button>
             <span class="cnt-val" id="val-ac-${p.id}">${p.ac}</span>
             <button type="button" class="cnt-btn plus" onclick="event.stopPropagation(); updateCounts(${p.id}, 'ac', 1)">+</button>
@@ -1639,6 +1654,7 @@
           </div>
         </td>
         <td style="text-align:center;">${slamBadge}</td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.demo || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.upgrade}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.services}</span></td>
@@ -1663,6 +1679,7 @@
           </div>
         </td>
         <td style="text-align:center;">${slamBadge}</td>
+        <td style="text-align:center;"><span class="aggregate-val">${p.demo || 0}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.ac}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.upgrade}</span></td>
         <td style="text-align:center;"><span class="aggregate-val">${p.services}</span></td>
@@ -1718,7 +1735,7 @@
         const divIn = document.createElement('tr');
         divIn.className = 'section-divider-row';
         divIn.id = 'header-checked-in';
-        divIn.innerHTML = `<td colspan="9" class="col-sticky">🟢 On Shift / Checked In (${checkedMembers.length})</td>`;
+        divIn.innerHTML = `<td colspan="10" class="col-sticky">🟢 On Shift / Checked In (${checkedMembers.length})</td>`;
         tbody.appendChild(divIn);
 
         checkedMembers.forEach(p => {
@@ -1730,7 +1747,7 @@
         const divOut = document.createElement('tr');
         divOut.className = 'section-divider-row';
         divOut.id = 'header-not-checked-in';
-        divOut.innerHTML = `<td colspan="9" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
+        divOut.innerHTML = `<td colspan="10" class="col-sticky">⚪ Other Team Members (${uncheckedMembers.length})</td>`;
         tbody.appendChild(divOut);
 
         uncheckedMembers.forEach(p => {
@@ -1815,7 +1832,7 @@
 
   function updateTotals() {
     const list = getDisplayList();
-    let totAc = 0, totUp = 0, totSrv = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
+    let totDemo = 0, totAc = 0, totUp = 0, totSrv = 0, totBiz = 0, totAcc = 0, totSlam = 0, totCheckin = 0;
 
     list.forEach(d => {
       if (currentTab === 'daily') {
@@ -1828,6 +1845,7 @@
         if (d.shiftsWorked > 0) totCheckin += d.shiftsWorked;
         totSlam += (d.slamsAchieved || 0);
       }
+      totDemo += (d.demo || 0);
       totAc += (d.ac || 0);
       totUp += (d.upgrade || 0);
       totSrv += (d.services || 0);
@@ -1844,6 +1862,8 @@
 
     const elSlam = document.getElementById("kpi-grandslam");
     if (elSlam) elSlam.textContent = totSlam;
+    const elDemo = document.getElementById("tot-demo");
+    if (elDemo) elDemo.textContent = totDemo;
     const elAc = document.getElementById("kpi-ac");
     if (elAc) elAc.textContent = totAc;
     const elUp = document.getElementById("kpi-upgrade");
@@ -2180,6 +2200,7 @@
     if (confirm("Reset today's active metrics, steps, and check-ins to 0? (Archived history will remain saved)")) {
       data.forEach(d => {
         d.checkedIn = false;
+        d.demo = 0;
         d.ac = 0;
         d.upgrade = 0;
         d.services = 0;
@@ -2214,20 +2235,20 @@
   function exportCSV() {
     let csv = `PZ ScoreBoard Export (${currentTab.toUpperCase()})\n`;
     if (currentTab === 'daily' || currentTab === 'priorday') {
-      csv += "Checked In,Name,Job Title,Grand Slam Status (🏆),AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
+      csv += "Checked In,Name,Job Title,Grand Slam Status (🏆),Demo (🤳),AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧),Apple Steps of Services,Notes\n";
       const list = getDisplayList();
       const exportData = [...list].sort((a, b) => (b.checkedIn ? 1 : 0) - (a.checkedIn ? 1 : 0));
       exportData.forEach(p => {
         const hits = getHitCount(p);
         const slamLabel = hits === 5 ? "GRAND SLAM (5/5) 🏆" : `${hits}/5`;
         const inStatus = p.checkedIn ? "Yes" : "No";
-        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc},"${p.step || ''}","${p.notes || ''}"\n`;
+        csv += `"${inStatus}","${p.name}","${p.role}","${slamLabel}",${p.demo || 0},${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc},"${p.step || ''}","${p.notes || ''}"\n`;
       });
     } else {
       const list = getDisplayList();
-      csv += "Name,Job Title,Shifts Worked,Grand Slam Achieved,AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧)\n";
+      csv += "Name,Job Title,Shifts Worked,Grand Slam Achieved,Demo (🤳),AppleCare+ (🍎),Upgrades (🆙),Services (🛍️),Business (💼),Accessories (🎧)\n";
       list.forEach(p => {
-        csv += `"${p.name}","${p.role}",${p.shiftsWorked},${p.slamsAchieved},${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc}\n`;
+        csv += `"${p.name}","${p.role}",${p.shiftsWorked},${p.slamsAchieved},${p.demo || 0},${p.ac},${p.upgrade},${p.services},${p.biz},${p.acc}\n`;
       });
     }
 
@@ -2365,6 +2386,7 @@
       role: cleanRole,
       checkedIn: true,
       ac: 0,
+      demo: 0,
       upgrade: 0,
       services: 0,
       biz: 0,
