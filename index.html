@@ -909,7 +909,7 @@
     <div class="app-title">
       🛍️ PZ ScoreBoard
       <span class="sync-badge" id="syncStatus">🔄 Connecting Cloud Sync...</span>
-      <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Archive: 8:59 PM • Auto-Reset: 11:59 PM</span>
+      <span class="sync-badge" id="autoSaveBadge">⏰ Auto-Archive: 11:59 PM • Auto-Reset: 11:59 PM</span>
     </div>
     <div class="btn-group">
       <button class="undo-btn" id="btnUndo" onclick="undoLastAction()" title="Undo last change">↩️ Undo</button>
@@ -1079,7 +1079,7 @@
   <div class="history-card" id="historyCard">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="font-size: 18px; font-weight: 700;">📜 Daily Shift Archive Logs</h2>
-      <span style="font-size: 12px; color: var(--text-secondary);">Auto-Archived Daily at 8:59 PM</span>
+      <span style="font-size: 12px; color: var(--text-secondary);">Auto-Archived Daily at 11:59 PM</span>
     </div>
     <div id="historyListContainer"></div>
   </div>
@@ -1171,12 +1171,26 @@
       .replace(/"/g, '&quot;');
   }
 
+  // Always use the Pacific clock for the business calendar, regardless of
+  // the iPad/browser's configured time zone.
+  function getPacificClockParts(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+    }).formatToParts(date).reduce((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+    return {
+      year: Number(parts.year), month: Number(parts.month), day: Number(parts.day),
+      hour: Number(parts.hour), minute: Number(parts.minute)
+    };
+  }
+
   function getTodayString() {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const p = getPacificClockParts();
+    return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
   }
 
   function parseDateSafe(dateStr) {
@@ -2044,14 +2058,14 @@
       badge.style.borderColor = '#34c759';
       badge.style.color = '#34c759';
       setTimeout(() => {
-        badge.textContent = '⏰ Auto-Archive: 8:59 PM • Auto-Reset: 11:59 PM';
+        badge.textContent = '⏰ Auto-Archive: 11:59 PM • Auto-Reset: 11:59 PM';
         badge.style.borderColor = '';
         badge.style.color = '';
       }, 8000);
     }
   }
 
-  /* ⏰ HOURLY AUTO-SAVE, 8:59 PM AUTO-ARCHIVE & 11:59 PM RESET ENGINE */
+  /* ⏰ HOURLY AUTO-SAVE, 11:59 PM AUTO-ARCHIVE & 11:59 PM RESET ENGINE */
   function setupAutoEngines() {
     let lastHourlySaveHour = -1;
     let archivedAt1159ForDate = "";
@@ -2059,8 +2073,9 @@
 
     function runEngines() {
       const now = new Date();
-      const curHour = now.getHours();
-      const curMin = now.getMinutes();
+      const pacificNow = getPacificClockParts(now);
+      const curHour = pacificNow.hour;
+      const curMin = pacificNow.minute;
       const today = getTodayString();
 
       // 1. Hourly State Checkpoint (every hour on the hour)
